@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="utf-8" />
+    <title>福建地图展示 - 图层定位菜单</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://js.arcgis.com/4.32/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.32/"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        .header {
+            height: 50px;
+            background-color: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .footer {
+            height: 50px;
+            background-color: #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        #viewDiv {
+            height: calc(100% - 100px);
+            width: 100%;
+            position: relative;
+        }
+
+        #customSearch {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+            background: white;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #customSearch input {
+            border: none;
+            outline: none;
+            font-size: 14px;
+            width: 180px;
+        }
+
+        #layerSelect {
+            padding: 4px;
+            font-size: 14px;
+        }
+
+        select {
+            padding: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">福建农林大学学生活动及交通安全专题图</div>
+
+<div id="viewDiv">
+    <!-- 自定义搜索框 + 图层选择 -->
+    <div id="customSearch">
+        <input type="text" id="searchInput" placeholder="在这输入进行搜索" />
+        <select id="layerSelect">
+            <option value="">🔍 选择图层缩放</option>
+            <option value="traffic">交通安全</option>
+            <option value="area">活动区域</option>
+            <option value="route">活动路线</option>
+            <option value="point">活动点</option>
+        </select>
+    </div>
+</div>
+
+<div class="footer">
+    切换底图：
+    <select id="basemap-select">
+        <option value="streets-navigation-vector">街道导航</option>
+        <option value="satellite">卫星图</option>
+        <option value="topo-vector">地形图</option>
+        <option value="osm">OpenStreetMap</option>
+        <option value="gray-vector">灰色底图</option>
+    </select>
+</div>
+
+<script>
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/widgets/Legend",
+        "esri/widgets/ScaleBar",
+        "esri/widgets/LayerList"
+    ], function(Map, MapView, FeatureLayer, Legend, ScaleBar, LayerList) {
+
+        const map = new Map({
+            basemap: "streets-navigation-vector"
+        });
+
+        const view = new MapView({
+            container: "viewDiv",
+            map: map,
+            center: [119.3, 26.05],
+            zoom: 12
+        });
+
+        // 图层定义
+        const trafficLayer = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/福州市仓山区交通地图查看图层/FeatureServer/0",
+            title: "交通安全"
+        });
+
+        const funLayer0 = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/农大学生日常娱乐图_查看/FeatureServer/0",
+            title: "学生活动区域"
+        });
+
+        const funLayer1 = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/农大学生日常娱乐图_查看/FeatureServer/1",
+            title: "学生活动路线"
+        });
+
+        const funLayer2 = new FeatureLayer({
+            url: "https://www.geosceneonline.cn/server/rest/services/Hosted/农大学生日常娱乐图_查看/FeatureServer/2",
+            title: "学生活动点"
+        });
+
+        map.addMany([trafficLayer, funLayer0, funLayer1, funLayer2]);
+
+        // 图例
+        const legend = new Legend({ view: view });
+        view.ui.add(legend, "bottom-right");
+
+        // 比例尺
+        const scaleBar = new ScaleBar({ view: view, unit: "metric" });
+        view.ui.add(scaleBar, "bottom-left");
+
+        // 图层列表
+        const layerList = new LayerList({ view: view });
+        view.ui.add(layerList, "top-left");
+
+        // 图层缩放逻辑
+        const layerMap = {
+            traffic: trafficLayer,
+            area: funLayer0,
+            route: funLayer1,
+            point: funLayer2
+        };
+
+        document.getElementById("layerSelect").addEventListener("change", function (e) {
+            const selected = e.target.value;
+            const layer = layerMap[selected];
+            if (layer) {
+                layer.queryExtent().then(function(result) {
+                    if (result.extent) {
+                        view.goTo(result.extent.expand(1.2)); // 适当放大
+                    }
+                });
+            }
+        });
+
+        // 底图切换
+        document.getElementById("basemap-select").addEventListener("change", function (e) {
+            map.basemap = e.target.value;
+        });
+
+    });
+</script>
+</body>
+</html>
