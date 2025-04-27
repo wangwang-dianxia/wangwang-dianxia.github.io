@@ -8,30 +8,30 @@
         body, html { width: 100%; height: 100%; margin: 0; padding: 0; font-family: "Microsoft YaHei", sans-serif; }
         #map-container { width: 100%; height: 100%; position: relative; }
         #search-container {
-            position: absolute; top: 20px; right: 20px; z-index: 1000;
-            background: white; padding: 10px; border-radius: 5px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          position: absolute; top: 20px; right: 20px; z-index: 1000;
+          background: white; padding: 10px; border-radius: 5px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
         #search-input {
-            width: 200px; padding: 8px;
-            border: 1px solid #ccc; border-radius: 3px;
+          width: 200px; padding: 8px;
+          border: 1px solid #ccc; border-radius: 3px;
         }
         #search-button {
-            padding: 8px 12px; background: #3385ff;
-            color: white; border: none; border-radius: 3px;
-            cursor: pointer; margin-left: 5px;
+          padding: 8px 12px; background: #3385ff;
+          color: white; border: none; border-radius: 3px;
+          cursor: pointer; margin-left: 5px;
         }
         #search-button:hover { background: #2d78f4; }
         #zoom-controls {
-            position: absolute; top: 90px; right: 20px; z-index: 1000;
-            background: white; padding: 5px; border-radius: 3px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          position: absolute; top: 90px; right: 20px; z-index: 1000;
+          background: white; padding: 5px; border-radius: 3px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
         .zoom-button {
-            display: block; width: 30px; height: 30px; text-align: center;
-            line-height: 30px; font-size: 18px; cursor: pointer;
-            margin: 5px; background: #f5f5f5;
-            border: 1px solid #ddd; border-radius: 3px;
+          display: block; width: 30px; height: 30px; text-align: center;
+          line-height: 30px; font-size: 18px; cursor: pointer;
+          margin: 5px; background: #f5f5f5;
+          border: 1px solid #ddd; border-radius: 3px;
         }
         .zoom-button:hover { background: #e5e5e5; }
     </style>
@@ -52,105 +52,111 @@
 
 <script type="text/javascript">
     var map;
+    var arkAppCheckTimer = null;
 
     function initMap() {
-        console.info('[地图] 开始初始化');
-        map = new BMap.Map("map-container");
-        var point = new BMap.Point(116.404, 39.915); // 默认北京
-        map.centerAndZoom(point, 15);
-        map.enableScrollWheelZoom(true);
-        map.addControl(new BMap.NavigationControl());
-        map.addControl(new BMap.ScaleControl());
-        console.info('[地图] 初始化完成');
+      console.info('[ArkHTML] 地图开始初始化');
+      map = new BMap.Map("map-container");
+      var point = new BMap.Point(116.404, 39.915); // 默认北京
+      map.centerAndZoom(point, 15);
+      map.enableScrollWheelZoom(true);
+      map.addControl(new BMap.NavigationControl());
+      map.addControl(new BMap.ScaleControl());
+      console.info('[ArkHTML] 地图初始化完成');
+    }
+
+    function waitForArkApp() {
+      if (arkAppCheckTimer) {
+        clearInterval(arkAppCheckTimer);
+      }
+      let tryCount = 0;
+      const maxTry = 30; // 尝试30次，3秒
+      arkAppCheckTimer = setInterval(() => {
+        if (window.ArkApp && typeof window.ArkApp.pageReady === 'function') {
+          console.info('[ArkHTML] 找到ArkApp，调用pageReady');
+          window.ArkApp.pageReady();
+          console.info('[ArkHTML] pageReady调用完成');
+          clearInterval(arkAppCheckTimer);
+        } else {
+          tryCount++;
+          if (tryCount >= maxTry) {
+            console.error('[ArkHTML] 等待ArkApp超时，pageReady未触发');
+            clearInterval(arkAppCheckTimer);
+          }
+        }
+      }, 100);
     }
 
     window.onload = function() {
-        console.info('[页面] 网页加载完成，开始初始化地图...');
+      console.info('[ArkHTML] window.onload触发，等待document完成...');
+      if (document.readyState === 'complete') {
         initMap();
         document.getElementById('search-input').value = '';
-
-        console.info('[页面] 地图初始化完成，等待ArkApp注入...');
-
         waitForArkApp();
+      } else {
+        document.onreadystatechange = function() {
+          if (document.readyState === 'complete') {
+            initMap();
+            document.getElementById('search-input').value = '';
+            waitForArkApp();
+          }
+        };
+      }
     };
 
-    function waitForArkApp() {
-        let tryCount = 0;
-        const maxTry = 20; // 最多检查2秒 (100ms一次)
-
-        const interval = setInterval(() => {
-            if (window.ArkApp && typeof window.ArkApp.pageReady === 'function') {
-                console.info('[ArkBridge] 找到ArkApp了，调用pageReady');
-                window.ArkApp.pageReady();
-                clearInterval(interval);
-            } else {
-                tryCount++;
-                if (tryCount >= maxTry) {
-                    console.error('[ArkBridge] 等待ArkApp超时，未能调用pageReady');
-                    clearInterval(interval);
-                }
-            }
-        }, 100);
-    }
-
     function doSearch(keyword) {
-        if (!map) {
-            console.error('[搜索] 地图未初始化');
-            return;
-        }
-        if (!keyword || keyword.trim() === '') {
-            console.error('[搜索] 关键词为空');
-            return;
-        }
-        console.info('[搜索] 开始搜索:', keyword.trim());
+      if (!map) {
+        console.error('[ArkHTML][搜索] 地图未初始化');
+        return;
+      }
+      if (!keyword || keyword.trim() === '') {
+        console.error('[ArkHTML][搜索] 关键词为空');
+        return;
+      }
+      console.info('[ArkHTML][搜索] 搜索关键词:', keyword.trim());
 
-        map.clearOverlays();
-
-        var local = new BMap.LocalSearch(map, {
-            renderOptions: { map: map }
-        });
-
-        local.search(keyword.trim());
+      map.clearOverlays();
+      var local = new BMap.LocalSearch(map, { renderOptions: { map: map } });
+      local.search(keyword.trim());
     }
 
     document.getElementById('search-button').onclick = function() {
-        var keyword = document.getElementById('search-input').value;
-        doSearch(keyword);
+      var keyword = document.getElementById('search-input').value;
+      doSearch(keyword);
     };
 
     document.getElementById('search-input').onkeypress = function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('search-button').click();
-        }
+      if (e.key === 'Enter') {
+        document.getElementById('search-button').click();
+      }
     };
 
     document.getElementById('zoom-in').onclick = function() {
-        if (map) {
-            map.setZoom(map.getZoom() + 1);
-            console.info('[缩放] 放大一级，当前Zoom:', map.getZoom());
-        }
+      if (map) {
+        map.setZoom(map.getZoom() + 1);
+        console.info('[ArkHTML][缩放] 放大，当前Zoom:', map.getZoom());
+      }
     };
 
     document.getElementById('zoom-out').onclick = function() {
-        if (map) {
-            map.setZoom(map.getZoom() - 1);
-            console.info('[缩放] 缩小一级，当前Zoom:', map.getZoom());
-        }
+      if (map) {
+        map.setZoom(map.getZoom() - 1);
+        console.info('[ArkHTML][缩放] 缩小，当前Zoom:', map.getZoom());
+      }
     };
 
-    // 🌟供Ark调用的搜索方法
     window.searchLocationFromArk = function(placeName) {
-        if (!map) {
-            console.error('[Ark调用] 地图未初始化');
-            return;
-        }
-        if (typeof placeName !== 'string' || placeName.trim() === '') {
-            console.error('[Ark调用] 传入placeName无效:', placeName);
-            return;
-        }
-        console.info('[Ark调用] 开始搜索地点:', placeName.trim());
-        document.getElementById('search-input').value = placeName.trim();
-        doSearch(placeName.trim());
+      if (!map) {
+        console.error('[ArkHTML][Ark调用] 地图未初始化');
+        return;
+      }
+      if (typeof placeName !== 'string' || placeName.trim() === '') {
+        console.error('[ArkHTML][Ark调用] 无效placeName:', placeName);
+        return;
+      }
+      console.info('[ArkHTML][Ark调用] 搜索地点:', placeName.trim());
+      document.getElementById('search-input').value = placeName.trim();
+      doSearch(placeName.trim());
     };
 </script>
 </body>
